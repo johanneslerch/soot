@@ -819,9 +819,9 @@ public class PackManager {
 	     //January 13th, 2006  SootMethodAddedByDava is set to false for SuperFirstStmtHandler
 	    G.v().SootMethodAddedByDava=false;
         } else {
-            G.v().out.print("Transforming ");
+//            G.v().out.print("Transforming ");
         }
-        G.v().out.println(c.getName() + "... ");
+//        G.v().out.println(c.getName() + "... ");
 
         boolean produceBaf = false, produceGrimp = false, produceDava = false,
             produceJimple = true, produceShimple = false;
