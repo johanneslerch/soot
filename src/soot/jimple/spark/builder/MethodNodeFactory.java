@@ -22,6 +22,7 @@ import soot.jimple.spark.pag.*;
 import soot.jimple.*;
 import soot.*;
 import soot.toolkits.scalar.Pair;
+import soot.options.SparkOptions;
 import soot.shimple.*;
 
 /** Class implementing builder parameters (this decides
@@ -127,13 +128,23 @@ public class MethodNodeFactory extends AbstractShimpleValueSwitch {
 		Node src = getNode();
 		mpag.addInternalEdge( src, dest );
 		
-	    if(pag.getOpts().allocate_params() && (method.isPublic() || method.isProtected()) 
-	    		&& is.getRightOp() instanceof ParameterRef 
-	    		&& is.getLeftOp().getType() instanceof RefType) {
-	    	RefType leftType = (RefType) is.getLeftOp().getType();
-	    	Node alloc = pag.makeAllocNode((ParameterRef) is.getRightOp(), AnySubType.v(leftType), method);
-	    	mpag.addInternalEdge(alloc, src);
-	    }	    
+		int libOption = pag.getOpts().library();
+		if(libOption != SparkOptions.library_disabled
+				&& is.getLeftOp().getType() instanceof RefType 
+				&& (method.isPublic() || method.isProtected())) {			
+			RefType leftType = (RefType) is.getLeftOp().getType();
+			if(is.getRightOp() instanceof IdentityRef) {
+				if (libOption == SparkOptions.library_any_subtype) {
+					Node alloc = pag.makeAllocNode(is.getRightOp(), AnySubType.v(leftType), method);
+					mpag.addInternalEdge(alloc, src);
+				} else if (libOption == SparkOptions.library_name_resolution) {
+					Node alloc = pag.makeAllocNode(is.getRightOp(), AnyPossibleSubType.v(leftType), method);
+					mpag.addInternalEdge(alloc, src);
+				}
+
+			}		
+		}
+	    
 	    }
 	    final public void caseThrowStmt(ThrowStmt ts) {
 		ts.getOp().apply( MethodNodeFactory.this );
