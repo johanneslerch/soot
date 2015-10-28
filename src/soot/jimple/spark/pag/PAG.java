@@ -26,13 +26,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import soot.AnyPossibleSubType;
-import soot.AnySubType;
 import soot.Context;
 import soot.FastHierarchy;
 import soot.G;
 import soot.Kind;
 import soot.Local;
+import soot.PhaseOptions;
 import soot.PointsToAnalysis;
 import soot.PointsToSet;
 import soot.RefLikeType;
@@ -51,6 +50,9 @@ import soot.jimple.NullConstant;
 import soot.jimple.Stmt;
 import soot.jimple.spark.builder.GlobalNodeFactory;
 import soot.jimple.spark.builder.MethodNodeFactory;
+import soot.jimple.spark.internal.ClientAccessibilityOracle;
+import soot.jimple.spark.internal.PublicAndProtectedAccessibility;
+import soot.jimple.spark.internal.SparkLibraryHelper;
 import soot.jimple.spark.internal.TypeManager;
 import soot.jimple.spark.sets.BitPointsToSet;
 import soot.jimple.spark.sets.DoublePointsToSet;
@@ -66,6 +68,7 @@ import soot.jimple.spark.sets.SortedArraySet;
 import soot.jimple.spark.solver.OnFlyCallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.pointer.util.NativeMethodDriver;
+import soot.options.CGOptions;
 import soot.options.SparkOptions;
 import soot.tagkit.LinkTag;
 import soot.tagkit.StringTag;
@@ -83,6 +86,7 @@ import soot.util.queue.QueueReader;
 public class PAG implements PointsToAnalysis {
     public PAG( final SparkOptions opts ) {
         this.opts = opts;
+        this.cgOpts = new CGOptions( PhaseOptions.v().getPhaseOptions("cg") );
         if( opts.add_tags() ) {
             nodeToTag = new HashMap<Node, Tag>();
         }
@@ -434,7 +438,7 @@ public class PAG implements PointsToAnalysis {
     public Iterator<VarNode> loadInvSourcesIterator() { return loadInv.keySet().iterator(); }
 
     static private int getSize( Object set ) {
-        if( set instanceof Set ) return ((Set) set).size();
+        if( set instanceof Set ) return ((Set<?>) set).size();
         else if( set == null ) return 0;
         else return ((Object[]) set).length;
     }
@@ -466,19 +470,22 @@ public class PAG implements PointsToAnalysis {
             nodeToTag.put( node, tag );
         }
     }
+    
     public AllocNode makeAllocNode( Object newExpr, Type type, SootMethod m ) {
-        if( opts.types_for_sites() || opts.vta() ) newExpr = type;
-	AllocNode ret = valToAllocNode.get( newExpr );
-	if( ret == null ) {
-	    valToAllocNode.put( newExpr, ret = new AllocNode( this, newExpr, type, m ) );
+    	if( opts.types_for_sites() || opts.vta() )
+    		newExpr = type;
+    	AllocNode ret = valToAllocNode.get( newExpr );
+    	if( ret == null ) {
+    		valToAllocNode.put( newExpr, ret = new AllocNode( this, newExpr, type, m ) );
             newAllocNodes.add( ret );
             addNodeTag( ret, m );
-	} else if( !( ret.getType().equals( type ) ) ) {
-	    throw new RuntimeException( "NewExpr "+newExpr+" of type "+type+
-		    " previously had type "+ret.getType() );
-	}
-	return ret;
+    	} else if( !( ret.getType().equals( type ) ) ) {
+    		throw new RuntimeException( "NewExpr "+newExpr+" of type "+type+
+    				" previously had type "+ret.getType() );
+    	}
+    	return ret;
     }
+    
     public AllocNode makeStringConstantNode( String s ) {
         if( opts.types_for_sites() || opts.vta() )
             return makeAllocNode( RefType.v( "java.lang.String" ),
@@ -524,7 +531,7 @@ public class PAG implements PointsToAnalysis {
 	return valToLocalVarNode.get( value );
     }
     /** Finds or creates the GlobalVarNode for the variable value, of type type. */
-    public GlobalVarNode makeGlobalVarNode( Object value, Type type ) {
+    public GlobalVarNode makeGlobalVarNode( Object value, Type type) {
         if( opts.rta() ) {
             value = null;
             type = RefType.v("java.lang.Object");
@@ -533,20 +540,16 @@ public class PAG implements PointsToAnalysis {
         if( ret == null ) {
             valToGlobalVarNode.put( value, 
                     ret = new GlobalVarNode( this, value, type ) );
-            if(opts.library() != SparkOptions.library_disabled && type instanceof RefType) {
-            	RefType rt = (RefType) type;
+            
+            // if library mode is activated, add allocation of every possible type to accessible fields
+            if(cgOpts.library() != CGOptions.library_disabled) {
             	if (value instanceof SootField) {
             		SootField sf = (SootField) value;
-            		if (sf.isPublic() || sf.isProtected())
-    				if (opts.library() == SparkOptions.library_any_subtype) {
-    					Node alloc = makeAllocNode(value, AnySubType.v(rt), null);
-    					addEdge(alloc, ret);
-    				} else if (opts.library() == SparkOptions.library_name_resolution) {
-    					Node alloc = makeAllocNode(value, AnyPossibleSubType.v(rt), null);
-    					addEdge(alloc, ret);
-    				}
+            		
+            		if (accessibilityOracle.isAccessible(sf)){
+            			type.apply(new SparkLibraryHelper(this, ret, null));
+            		}
             	}
-            	
             }
             addNodeTag( ret, null );
         } else if( !( ret.getType().equals( type ) ) ) {
@@ -620,22 +623,35 @@ public class PAG implements PointsToAnalysis {
     /** Finds the FieldRefNode for base variable value and field
      * field, or returns null. */
     public FieldRefNode findGlobalFieldRefNode( Object baseValue, SparkField field ) {
-	VarNode base = findGlobalVarNode( baseValue );
-	if( base == null ) return null;
-	return base.dot( field );
+    	VarNode base = findGlobalVarNode( baseValue );
+    	if( base == null ) return null;
+    	return base.dot( field );
     }
     /** Finds or creates the FieldRefNode for base variable baseValue and field
      * field, of type type. */
     public FieldRefNode makeLocalFieldRefNode( Object baseValue, Type baseType,
 	    SparkField field, SootMethod method ) {
-	VarNode base = makeLocalVarNode( baseValue, baseType, method );
-        return makeFieldRefNode( base, field );
+    	VarNode base = makeLocalVarNode( baseValue, baseType, method );
+    	FieldRefNode ret = makeFieldRefNode(base, field);
+    	
+    	// if library mode is activated, add allocation of every possible type to accessible fields
+    	if(cgOpts.library() != CGOptions.library_disabled) {
+        	if (field instanceof SootField) {
+        		SootField sf = (SootField) field;
+        		Type type = sf.getType();
+        		if (accessibilityOracle.isAccessible(sf)){
+        			type.apply(new SparkLibraryHelper(this, ret, method));
+        		}
+        	}
+        }
+    	
+        return ret;
     }
     /** Finds or creates the FieldRefNode for base variable baseValue and field
      * field, of type type. */
     public FieldRefNode makeGlobalFieldRefNode( Object baseValue, Type baseType,
 	    SparkField field ) {
-	VarNode base = makeGlobalVarNode( baseValue, baseType );
+    	VarNode base = makeGlobalVarNode( baseValue, baseType );
         return makeFieldRefNode( base, field );
     }
     /** Finds or creates the FieldRefNode for base variable base and field
@@ -649,6 +665,7 @@ public class PAG implements PointsToAnalysis {
 	    } else {
 	    	addNodeTag( ret, null );
 	    }
+	    
 	}
 	return ret;
     }
@@ -777,6 +794,9 @@ public class PAG implements PointsToAnalysis {
 
     /** Returns SparkOptions for this graph. */
     public SparkOptions getOpts() { return opts; }
+    
+    /** Returns CGOptions for this graph. */
+    public CGOptions getCGOpts() { return cgOpts; }
 
     // Must be simple edges
 	public Pair<Node, Node> addInterproceduralAssignment(Node from, Node to, Edge e) 
@@ -1139,6 +1159,8 @@ public class PAG implements PointsToAnalysis {
     /* End of package methods. */
 
     protected SparkOptions opts;
+    protected CGOptions cgOpts;
+    protected ClientAccessibilityOracle accessibilityOracle = Scene.v().getClientAccessibilityOracle();
 
     protected Map<VarNode, Object> simple = new HashMap<VarNode, Object>();
     protected Map<FieldRefNode, Object> load = new HashMap<FieldRefNode, Object>();
@@ -1167,7 +1189,7 @@ public class PAG implements PointsToAnalysis {
     }
 	
     private boolean runGeomPTA = false;
-    protected Map<Pair, Set<Edge>> assign2edges = new HashMap<Pair, Set<Edge>>();
+    protected Map<Pair<Node, Node>, Set<Edge>> assign2edges = new HashMap<Pair<Node, Node>, Set<Edge>>();
     private final Map<Object, LocalVarNode> valToLocalVarNode = new HashMap<Object, LocalVarNode>(1000);
     private final Map<Object, GlobalVarNode> valToGlobalVarNode = new HashMap<Object, GlobalVarNode>(1000);
     private final Map<Object, AllocNode> valToAllocNode = new HashMap<Object, AllocNode>(1000);

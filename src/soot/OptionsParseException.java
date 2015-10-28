@@ -1,5 +1,5 @@
 /* Soot - a J*va Optimization Framework
- * Copyright (C) 1997-1999 Raja Vallee-Rai
+ * Copyright (C) 2015 Steven Arzt
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,7 +15,7 @@
  * License along with this library; if not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- */
+ *
 
 /*
  * Modified by the Sable Research Group and others 1997-1999.  
@@ -23,49 +23,17 @@
  * contributors.  (Soot is distributed at http://www.sable.mcgill.ca/soot)
  */
 
-
-
-
-
 package soot;
 
-import soot.util.*;
+public class OptionsParseException extends RuntimeException {
+	
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = -8274657472953193866L;
 
-
-@SuppressWarnings("serial")
-public class AnyPossibleSubType extends RefLikeType
-{
-	private RefType base;
-    private AnyPossibleSubType( RefType base )
-    {
-        this.base = base;
+	public OptionsParseException(String msg) {
+    	super(msg);
     }
-
-    public static AnyPossibleSubType v( RefType base ) {
-        if( base.getAnyPossibleSubType() == null ) {
-            base.setAnyPossibleSubType( new AnyPossibleSubType( base ) );
-        }
-        return base.getAnyPossibleSubType();
-    }
-    
-    @Override
-    public String toString()
-    {
-        return "Any_implementing_type_of_"+base;
-    }
-
-    @Override
-    public void apply(Switch sw)
-    {
-        ((TypeSwitch) sw).caseAnyPossibleSubType(this);
-    }
-
-    @Override
-    public Type getArrayElementType() {
-    	throw new RuntimeException( "Attempt to get array base type of a non-array" );  
-    }
-    
-    public RefType getBase() { return base; }
-    
-    public void setBase( RefType base ) { this.base = base; }
+	
 }

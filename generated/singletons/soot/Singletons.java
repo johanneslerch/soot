@@ -611,6 +611,12 @@ public class Singletons {
         return instance_soot_jimple_toolkits_scalar_UnconditionalBranchFolder;
     }
 
+    private soot.jimple.toolkits.scalar.ConstantCastEliminator instance_soot_jimple_toolkits_scalar_ConstantCastEliminator;
+    public soot.jimple.toolkits.scalar.ConstantCastEliminator soot_jimple_toolkits_scalar_ConstantCastEliminator() {
+        if( instance_soot_jimple_toolkits_scalar_ConstantCastEliminator == null ) instance_soot_jimple_toolkits_scalar_ConstantCastEliminator = new soot.jimple.toolkits.scalar.ConstantCastEliminator( g );
+        return instance_soot_jimple_toolkits_scalar_ConstantCastEliminator;
+    }
+
     private soot.UnknownType instance_soot_UnknownType;
     public soot.UnknownType soot_UnknownType() {
         if( instance_soot_UnknownType == null ) instance_soot_UnknownType = new soot.UnknownType( g );
@@ -963,6 +969,18 @@ public class Singletons {
     public soot.toolkits.scalar.SmartLocalDefsPool soot_toolkits_scalar_SmartLocalDefsPool() {
         if( instance_soot_toolkits_scalar_SmartLocalDefsPool == null ) instance_soot_toolkits_scalar_SmartLocalDefsPool = new soot.toolkits.scalar.SmartLocalDefsPool( g );
         return instance_soot_toolkits_scalar_SmartLocalDefsPool;
+    }
+
+    private soot.jimple.spark.internal.PublicAndProtectedAccessibility instance_soot_jimple_spark_internal_PublicAndProtectedAccessibility;
+    public soot.jimple.spark.internal.PublicAndProtectedAccessibility soot_jimple_spark_internal_PublicAndProtectedAccessibility() {
+        if( instance_soot_jimple_spark_internal_PublicAndProtectedAccessibility == null ) instance_soot_jimple_spark_internal_PublicAndProtectedAccessibility = new soot.jimple.spark.internal.PublicAndProtectedAccessibility( g );
+        return instance_soot_jimple_spark_internal_PublicAndProtectedAccessibility;
+    }
+
+    private soot.jimple.spark.internal.CompleteAccessibility instance_soot_jimple_spark_internal_CompleteAccessibility;
+    public soot.jimple.spark.internal.CompleteAccessibility soot_jimple_spark_internal_CompleteAccessibility() {
+        if( instance_soot_jimple_spark_internal_CompleteAccessibility == null ) instance_soot_jimple_spark_internal_CompleteAccessibility = new soot.jimple.spark.internal.CompleteAccessibility( g );
+        return instance_soot_jimple_spark_internal_CompleteAccessibility;
     }
 
 }
