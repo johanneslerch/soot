@@ -539,6 +539,18 @@ the Soot classpath. Fall back to <tt>.class</tt>, <tt>.java</tt> or <tt>.jimple<
 files only when unable to find a class in <tt>.apk</tt> files.
 </long_desc>
 			</value>
+			<value>
+				<name>APK File</name>
+				<alias>apk-class-jimple</alias>
+				<alias>apk-c-j</alias>
+				<short_desc>Favour APK files as Soot source, disregard Java files</short_desc>
+				<long_desc>
+Try to resolve classes first from <tt>.apk</tt> (Android Package) files found in
+the Soot classpath. Fall back to <tt>.class</tt>, or <tt>.jimple</tt>
+files only when unable to find a class in <tt>.apk</tt> files. Never load a <tt>.java</tt>
+file.
+</long_desc>
+			</value>
 		</multiopt>
 		<boolopt>
 			<name>Force complete resolver</name>
@@ -1844,6 +1856,70 @@ When this option is set to false, any calls to Class.newInstance()
 are assumed not to call the constructor of the created object.
 </long_desc>
                                 </boolopt>
+                               	<multiopt>
+									<name>Library mode</name>
+									<alias>library</alias>
+									<short_desc>
+										Specifies whether the target classes should be treated as an application or a library.
+									</short_desc>
+									<long_desc>
+										Specifies whether the target classes should be treated as an application or a library.
+										If library mode is disabled (default), the call graph construction assumes that the target is an application and 
+										starts the construction from the specified entry points (main method by default). 
+										Under the assumption that the target is a library, possible call edges might be missing in the call graph.
+										The two different library modes add theses missing calls to the call graph and differ only in the view of the class hierachy 
+										(hierachy of target library or possible extended hierachy).
+										If simulate-natives is also set, the results of native methods are also set to any  sub type of the declared return type.
+									</long_desc>
+									<value>
+										<name>Disabled</name>
+										<alias>disabled</alias>
+										<default/>
+										<short_desc>
+											Call(and pointer assignment) graph construction treat the target classes as application starting from the entry points.
+										</short_desc>
+										<long_desc>
+											Call(and pointer assignment) graph construction treat the target classes as application starting from the entry points.
+										</long_desc>
+									</value>
+									<value>
+										<name>Any Subtype</name>
+										<alias>any-subtype</alias>
+										<short_desc>
+											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type 
+											according to the class hierarchy of the target library.
+										</short_desc>
+										<long_desc>
+											On library analysis it has to be assumed, that a possible client can call any method or access any field, 
+											to which he has the access rights (default public/protected but can be set with soot.Scene#setClientAccessibilityOracle).
+											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type 
+											according to the class hierachy of the target library.
+											If simulate-natives is also set, the results of native methods are also set to any sub type of the declared return type.
+										</long_desc>
+									</value>
+									<value>
+										<name>By Signature resolution</name>
+										<alias>signature-resolution</alias>
+										<short_desc>
+											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type 
+											according to a possible extended class hierarchy of the target library.
+										</short_desc>
+										<long_desc>
+											On library analysis it has to be assumed, that a possible client can call any method or access any field, 
+											to which he has the access rights (default public/protected but can be set with soot.Scene#setClientAccessibilityOracle).
+											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type 
+											according to a possible extended class hierarchy of the target library. Whenever any sub type of a specific type is considered as 
+											receiver for a method to call and the base type is an interface, calls to existing methods with matching signature (possible implementation 
+											of method to call) are also added. As Javas' subtyping allows contra-variance for return types and co-variance for parameters when overriding 
+											a method, these cases are also considered here.
+											
+											Example: Classes A, B (B sub type of A), interface I with method public A foo(B b); and a class C with method public B foo(A a) { ... }.
+											The extended class hierachy will contain C as possible implementation of I.
+											
+											If simulate-natives is also set, the results of native methods are also set to any possible sub type of the declared return type.
+										</long_desc>
+									</value>
+								</multiopt>
                                 <boolopt>
                                         <name>Verbose</name>
                                         <alias>verbose</alias>
@@ -2080,44 +2156,6 @@ When this option is set to true, Spark treats references to <code>EMPTYSET</code
 <code>EMPTYLIST</code> as allocation sites for <code>HashSet</code>, <code>HashMap</code> and <code>LinkedList</code> objects respectively, and references to <code>Hashtable.emptyIterator</code> as allocation sites for <code>Hashtable.EmptyIterator</code>. This enables subsequent analyses to differentiate different uses of Java's immutable empty collections.
         </long_desc>
 						</boolopt>
-						<multiopt>
-							<name>Library</name>
-							<alias>library</alias>
-							<value>
-								<name>Disabled</name>
-								<alias>disabled</alias>
-								<default/>
-								<short_desc>
-								</short_desc>
-								<long_desc>
-									
-								</long_desc>
-							</value>
-							<value>
-								<name>AnySubtype</name>
-								<alias>any-subtype</alias>
-								<short_desc>
-									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods. 
-									For any identity an allocation for any subtype will be added.
-								</short_desc>
-								<long_desc>
-									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods. 
-									For any identity an allocation for any subtype will be added.
-								</long_desc>
-							</value>
-							<value>
-								<name>By Name resolution</name>
-								<alias>name-resolution</alias>
-								<short_desc>
-									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods. 
-									For any identity an allocation for any possible subtype will be added.
-								</short_desc>
-								<long_desc>
-									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods. 
-									For any identity an allocation for any possible subtype will be added. 
-								</long_desc>
-							</value>
-						</multiopt>
 						<boolopt>
 							<name>Simple Edges Bidirectional</name>
 							<alias>simple-edges-bidirectional</alias>

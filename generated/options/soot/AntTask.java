@@ -229,6 +229,8 @@ public class AntTask extends MatchingTask {
                 || arg.equals( "jimple" )
                 || arg.equals( "java" )
                 || arg.equals( "apk" )
+                || arg.equals( "apk-class-jimple" )
+                || arg.equals( "apk-c-j" )
                 ) {
                 addArg("-src-prec");
                 addArg(arg);
@@ -1174,6 +1176,12 @@ public class AntTask extends MatchingTask {
             addArg("trim-clinit:"+(arg?"true":"false"));
           }
       
+          public void setlibrary(String arg) {
+            addArg("-p");
+            addArg("cg");
+            addArg("library:"+arg);
+          }
+      
           public void setjdkver(String arg) {
             addArg("-p");
             addArg("cg");
@@ -1418,12 +1426,6 @@ public class AntTask extends MatchingTask {
             addArg("-p");
             addArg("cg.spark");
             addArg("geom-app-only:"+(arg?"true":"false"));
-          }
-      
-          public void setlibrary(String arg) {
-            addArg("-p");
-            addArg("cg.spark");
-            addArg("library:"+arg);
           }
       
           public void setpropagator(String arg) {

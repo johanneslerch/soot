@@ -123,6 +123,8 @@ public class StmtVisitor implements StmtSwitch {
     private Map<Insn, LocalRegisterAssignmentInformation> insnRegisterMap = new IdentityHashMap<Insn, LocalRegisterAssignmentInformation>();
     private Map<Instruction, SwitchPayload> instructionPayloadMap = new IdentityHashMap<Instruction, SwitchPayload>();
 	private List<LocalRegisterAssignmentInformation> parameterInstructionsList = new ArrayList<LocalRegisterAssignmentInformation>();
+	
+	private Map<Constant, Register> monitorRegs = new HashMap<Constant, Register>();
     
     public StmtVisitor(SootMethod belongingMethod, DexBuilder belongingFile) {
 		this.belongingMethod = belongingMethod;
@@ -204,7 +206,7 @@ public class StmtVisitor implements StmtSwitch {
 			// Only consider real instructions
 			if (curInsn instanceof AddressInsn)
 				continue;
-			if (!curInsn.getOpcode().name.startsWith("move/"))
+			if (!isReducableMoveInstruction(curInsn.getOpcode().name))
 				continue;
 			
 			// Skip over following address instructions
@@ -218,7 +220,7 @@ public class StmtVisitor implements StmtSwitch {
 				nextIndex = j;
 				break;
 			}
-			if (nextInsn == null || !nextInsn.getOpcode().name.startsWith("move/"))
+			if (nextInsn == null || !isReducableMoveInstruction(nextInsn.getOpcode().name))
 				continue;
 			
 			// Do not remove the last instruction in the body as we need to remap
@@ -240,7 +242,7 @@ public class StmtVisitor implements StmtSwitch {
 				if (origStmt == null || !isJumpTarget(origStmt)) {
 					Insn nextStmt = this.insns.get(nextIndex + 1);
 					insns.remove(nextIndex);
-				
+					
 					if (origStmt != null) {
 						insnStmtMap.remove(nextInsn);
 						insnStmtMap.put(nextStmt, origStmt);
@@ -250,6 +252,12 @@ public class StmtVisitor implements StmtSwitch {
 		}
 	}
 	
+	private boolean isReducableMoveInstruction(String name) {
+		return name.startsWith("move/")
+				|| name.startsWith("move-object/")
+				|| name.startsWith("move-wide/");
+	}
+
 	private boolean isJumpTarget(Stmt target) {
 		for (Insn insn : this.insns)
 			if (insn instanceof InsnWithOffset)
@@ -336,7 +344,22 @@ public class StmtVisitor implements StmtSwitch {
 	private Insn buildMonitorInsn(MonitorStmt stmt, Opcode opc) {
 		Value lockValue = stmt.getOp();
         constantV.setOrigStmt(stmt);
-		Register lockReg = regAlloc.asImmediate(lockValue, constantV);
+        
+        // When leaving a monitor, we must make sure to re-use the old
+        // register. If we assign the same class constant to a new register
+        // before leaving the monitor, Android's bytecode verifier will assume
+        // that this constant assignment can throw an exception, leaving us
+        // with a dangling monitor. Imprecise static analyzers ftw.
+		Register lockReg = null;
+		if (lockValue instanceof Constant && opc == Opcode.MONITOR_EXIT)
+			if ((lockReg = monitorRegs.get(lockValue)) != null)
+				lockReg = lockReg.clone();
+		if (lockReg == null) {
+			lockReg = regAlloc.asImmediate(lockValue, constantV);
+			regAlloc.lockRegister(lockReg);
+			if (lockValue instanceof Constant)
+				monitorRegs.put((Constant) lockValue, lockReg);
+		}
 		return new Insn11x(opc, lockReg);
 	}
 	

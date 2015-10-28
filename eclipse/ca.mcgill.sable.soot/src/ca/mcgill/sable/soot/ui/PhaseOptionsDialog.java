@@ -698,6 +698,9 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		addToEnableGroup("cg", getcgsafe_newinstance_widget(), "safe-newinstance");
 		
 		
+		addToEnableGroup("cg", getcglibrary_widget(), "library");
+		
+		
 		addToEnableGroup("cg", getcgverbose_widget(), "verbose");
 		
 		
@@ -781,9 +784,6 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 
 		
 		addToEnableGroup("cg", "cg.spark", getcgcg_sparkempties_as_allocs_widget(), "empties-as-allocs");
-
-		
-		addToEnableGroup("cg", "cg.spark", getcgcg_sparklibrary_widget(), "library");
 
 		
 		addToEnableGroup("cg", "cg.spark", getcgcg_sparksimple_edges_bidirectional_widget(), "simple-edges-bidirectional");
@@ -2996,6 +2996,16 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 	        if ( (!(stringRes.equals(defStringRes))) && (stringRes != null) && (stringRes.length() != 0)) {
 			getConfig().put(getcgguards_widget().getAlias(), stringRes);
 		}
+		 
+		stringRes = getcglibrary_widget().getSelectedAlias();
+
+		
+		defStringRes = "disabled";
+		
+
+		if (!stringRes.equals(defStringRes)) {
+			getConfig().put(getcglibrary_widget().getAlias(), stringRes);
+		}
 		
 		boolRes = getcgcg_chaenabled_widget().getButton().getSelection();
 		
@@ -3165,16 +3175,6 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 
 		if (boolRes != defBoolRes) {
 			getConfig().put(getcgcg_sparkon_fly_cg_widget().getAlias(), new Boolean(boolRes));
-		}
-		 
-		stringRes = getcgcg_sparklibrary_widget().getSelectedAlias();
-
-		
-		defStringRes = "disabled";
-		
-
-		if (!stringRes.equals(defStringRes)) {
-			getConfig().put(getcgcg_sparklibrary_widget().getAlias(), stringRes);
 		}
 		
 		boolRes = getcgcg_sparksimplify_offline_widget().getButton().getSelection();
@@ -7671,6 +7671,18 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 	}
 	
 	
+	
+	private MultiOptionWidget cglibrary_widget;
+	
+	private void setcglibrary_widget(MultiOptionWidget widget) {
+		cglibrary_widget = widget;
+	}
+	
+	public MultiOptionWidget getcglibrary_widget() {
+		return cglibrary_widget;
+	}	
+	
+	
 	private BooleanOptionWidget cgcg_chaenabled_widget;
 	
 	private void setcgcg_chaenabled_widget(BooleanOptionWidget widget) {
@@ -7840,18 +7852,6 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 	public BooleanOptionWidget getcgcg_sparkon_fly_cg_widget() {
 		return cgcg_sparkon_fly_cg_widget;
 	}	
-	
-	
-	private MultiOptionWidget cgcg_sparklibrary_widget;
-	
-	private void setcgcg_sparklibrary_widget(MultiOptionWidget widget) {
-		cgcg_sparklibrary_widget = widget;
-	}
-	
-	public MultiOptionWidget getcgcg_sparklibrary_widget() {
-		return cgcg_sparklibrary_widget;
-	}	
-	
 	
 	private BooleanOptionWidget cgcg_sparksimplify_offline_widget;
 	
@@ -10621,6 +10621,12 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		
 		false),
 		
+		new OptionData("APK File",
+		"apk-class-jimple",
+		"\nTry to resolve classes first from .apk (Android Package) files \nfound in the Soot classpath. Fall back to .class, or .jimple \nfiles only when unable to find a class in .apk files. Never load \na .java file. ",
+		
+		false),
+		
 		};
 		
 										
@@ -13148,6 +13154,42 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		
 		
 		
+		data = new OptionData [] {
+		
+		new OptionData("Disabled",
+		"disabled",
+		"\n											Call(and pointer assignment) graph construction \ntreat the target classes as application starting from the entry \npoints. 										",
+		
+		true),
+		
+		new OptionData("Any Subtype",
+		"any-subtype",
+		"\n											On library analysis it has to be assumed, that a \npossible client can call any method or access any field, \n											to which he has the access rights (default \npublic/protected but can be set with \nsoot.Scene#setClientAccessibilityOracle). 											In this \nmode types of any accessible field, method parameter, this \nlocal, or caugth exception is set to any possible sub type \n											according to the class hierachy of the target \nlibrary. 											If simulate-natives is also set, the results \nof native methods are also set to any sub type of the declared \nreturn type. 										",
+		
+		false),
+		
+		new OptionData("By Signature resolution",
+		"signature-resolution",
+		"\n											On library analysis it has to be assumed, that a \npossible client can call any method or access any field, \n											to which he has the access rights (default \npublic/protected but can be set with \nsoot.Scene#setClientAccessibilityOracle). 											In this \nmode types of any accessible field, method parameter, this \nlocal, or caugth exception is set to any possible sub type \n											according to a possible extended class hierarchy of \nthe target library. Whenever any sub type of a specific type is \nconsidered as 											receiver for a method to call and the \nbase type is an interface, calls to existing methods with \nmatching signature (possible implementation 											of \nmethod to call) are also added. As Javas' subtyping allows \ncontra-variance for return types and co-variance for parameters \nwhen overriding 											a method, these cases are also \nconsidered here. 											 											Example: Classes A, B (B \nsub type of A), interface I with method public A foo(B b); and a \nclass C with method public B foo(A a) { ... }. 											The \nextended class hierachy will contain C as possible \nimplementation of I. 											 											If simulate-natives \nis also set, the results of native methods are also set to any \npossible sub type of the declared return type. 										",
+		
+		false),
+		
+		};
+		
+										
+		setcglibrary_widget(new MultiOptionWidget(editGroupcg, SWT.NONE, data, new OptionData("Library mode", "p", "cg","library", "\n										Specifies whether the target classes should be \ntreated as an application or a library. 										If library \nmode is disabled (default), the call graph construction assumes \nthat the target is an application and 										starts the \nconstruction from the specified entry points (main method by \ndefault). 										Under the assumption that the target is a \nlibrary, possible call edges might be missing in the call graph. \n										The two different library modes add theses missing \ncalls to the call graph and differ only in the view of the class \nhierachy 										(hierachy of target library or possible \nextended hierachy). 										If simulate-natives is also set, \nthe results of native methods are also set to any sub type of \nthe declared return type. 									")));
+		
+		defKey = "p"+" "+"cg"+" "+"library";
+		defKey = defKey.trim();
+		
+		if (isInDefList(defKey)) {
+			defaultString = getStringDef(defKey);
+		
+			getcglibrary_widget().setDef(defaultString);
+		}
+		
+		
+		
 		defKey = "p"+" "+"cg"+" "+"jdkver";
 		defKey = defKey.trim();
 		
@@ -13582,42 +13624,6 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		}
 
 		setcgcg_sparkon_fly_cg_widget(new BooleanOptionWidget(editGroupcgSpark_Pointer_Assignment_Graph_Building_Options, SWT.NONE, new OptionData("On Fly Call Graph", "p", "cg.spark","on-fly-cg", "\nWhen this option is set to true, the call graph is computed \non-the-fly as points-to information is computed. Otherwise, an \ninitial CHA approximation to the call graph is used. ", defaultBool)));
-		
-		
-		
-		data = new OptionData [] {
-		
-		new OptionData("Disabled",
-		"disabled",
-		"\n",
-		
-		true),
-		
-		new OptionData("AnySubtype",
-		"any-subtype",
-		"\n									Add Alloc nodes for identities (i.e. parameters, this \nlocals and caught exceptions) of accessible methods. \n									For any identity an allocation for any subtype will be \nadded. 								",
-		
-		false),
-		
-		new OptionData("By Name resolution",
-		"name-resolution",
-		"\n									Add Alloc nodes for identities (i.e. parameters, this \nlocals and caught exceptions) of accessible methods. \n									For any identity an allocation for any possible subtype \nwill be added. 								",
-		
-		false),
-		
-		};
-		
-										
-		setcgcg_sparklibrary_widget(new MultiOptionWidget(editGroupcgSpark_Pointer_Assignment_Graph_Building_Options, SWT.NONE, data, new OptionData("Library", "p", "cg.spark","library", "\n")));
-		
-		defKey = "p"+" "+"cg.spark"+" "+"library";
-		defKey = defKey.trim();
-		
-		if (isInDefList(defKey)) {
-			defaultString = getStringDef(defKey);
-		
-			getcgcg_sparklibrary_widget().setDef(defaultString);
-		}
 		
 		
 

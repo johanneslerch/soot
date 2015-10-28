@@ -41,6 +41,8 @@ public class Options extends OptionsBase {
     public static final int src_prec_jimple = 3;
     public static final int src_prec_java = 4;
     public static final int src_prec_apk = 5;
+    public static final int src_prec_apk_class_jimple = 6;
+    public static final int src_prec_apk_c_j = 6;
     public static final int output_format_J = 1;
     public static final int output_format_jimple = 1;
     public static final int output_format_j = 2;
@@ -363,6 +365,18 @@ public class Options extends OptionsBase {
                         return false;
                     }
                     src_prec = src_prec_apk;
+                }
+    
+                else if( false
+                || value.equals( "apk-class-jimple" )
+                || value.equals( "apk-c-j" )
+                ) {
+                    if( src_prec != 0
+                    && src_prec != src_prec_apk_c_j ) {
+                        G.v().out.println( "Multiple values given for option "+option );
+                        return false;
+                    }
+                    src_prec = src_prec_apk_c_j;
                 }
     
                 else {
@@ -1589,6 +1603,7 @@ public class Options extends OptionsBase {
 +padVal(" J jimple", "Favour Jimple files as Soot source" )
 +padVal(" java", "Favour Java files as Soot source" )
 +padVal(" apk", "Favour APK files as Soot source" )
++padVal(" apk-class-jimple apk-c-j", "Favour APK files as Soot source, disregard Java files" )
 +padOpt(" -full-resolver", "Force transitive resolving of referenced classes" )
 +padOpt(" -allow-phantom-refs", "Allow unresolved classes; may cause errors" )
 +padOpt(" -no-bodies-for-excluded", "Do not load bodies for excluded classes" )
@@ -1998,6 +2013,13 @@ public class Options extends OptionsBase {
                 +padOpt( "enabled (true)", "" )
                 +padOpt( "safe-forname (false)", "Handle Class.forName() calls conservatively" )
                 +padOpt( "safe-newinstance (false)", "Handle Class.newInstance() calls conservatively" )
+                +padOpt( "library", " 										Specifies whether the target classes should be treated as an application or a library. 									" )
+                +padVal( "disabled (default)", " 											Call(and pointer assignment) graph construction treat the target classes as application starting from the entry points. 										" )
+                
+                +padVal( "any-subtype", " 											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type  											according to the class hierarchy of the target library. 										" )
+                
+                +padVal( "signature-resolution", " 											In this mode types of any accessible field, method parameter, this local, or caugth exception is set to any possible sub type  											according to a possible extended class hierarchy of the target library. 										" )
+                
                 +padOpt( "verbose (false)", "Print warnings about where the call graph may be incomplete" )
                 +padOpt( "jdkver (3)", "JDK version for native methods" )
                 +padOpt( "all-reachable (false)", "Assume all methods of application classes are reachable." )
@@ -2030,13 +2052,6 @@ public class Options extends OptionsBase {
                 +padOpt( "string-constants (false)", "Propagate all string constants, not just class names" )
                 +padOpt( "simulate-natives (true)", "Simulate effects of native methods in standard class library" )
                 +padOpt( "empties-as-allocs (false)", "Treat singletons for empty sets etc. as allocation sites" )
-                +padOpt( "library", "" )
-                +padVal( "disabled (default)", "" )
-                
-                +padVal( "any-subtype", " 									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods.  									For any identity an allocation for any subtype will be added. 								" )
-                
-                +padVal( "name-resolution", " 									Add Alloc nodes for identities (i.e. parameters, this locals and caught exceptions) of accessible methods.  									For any identity an allocation for any possible subtype will be added. 								" )
-                
                 +padOpt( "simple-edges-bidirectional (false)", "Equality-based analysis between variable nodes" )
                 +padOpt( "on-fly-cg (true)", "Build call graph as receiver types become known" )
                 +padOpt( "simplify-offline (false)", "Collapse single-entry subgraphs of the PAG" )
@@ -2957,6 +2972,7 @@ public class Options extends OptionsBase {
                 +"enabled "
                 +"safe-forname "
                 +"safe-newinstance "
+                +"library "
                 +"verbose "
                 +"jdkver "
                 +"all-reachable "
@@ -2985,7 +3001,6 @@ public class Options extends OptionsBase {
                 +"string-constants "
                 +"simulate-natives "
                 +"empties-as-allocs "
-                +"library "
                 +"simple-edges-bidirectional "
                 +"on-fly-cg "
                 +"simplify-offline "
@@ -3568,6 +3583,7 @@ public class Options extends OptionsBase {
               +"enabled:true "
               +"safe-forname:false "
               +"safe-newinstance:false "
+              +"library:disabled "
               +"verbose:false "
               +"jdkver:3 "
               +"all-reachable:false "
@@ -3595,7 +3611,6 @@ public class Options extends OptionsBase {
               +"string-constants:false "
               +"simulate-natives:true "
               +"empties-as-allocs:false "
-              +"library:disabled "
               +"simple-edges-bidirectional:false "
               +"on-fly-cg:true "
               +"simplify-offline:false "

@@ -49,6 +49,8 @@ import java.util.zip.ZipFile;
 
 import org.xmlpull.v1.XmlPullParser;
 
+import soot.jimple.spark.internal.ClientAccessibilityOracle;
+import soot.jimple.spark.internal.PublicAndProtectedAccessibility;
 import soot.jimple.spark.pag.SparkField;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.ContextSensitiveCallGraph;
@@ -150,6 +152,7 @@ public class Scene  //extends AbstractHost
     private PointsToAnalysis activePointsToAnalysis;
     private SideEffectAnalysis activeSideEffectAnalysis;
     private List<SootMethod> entryPoints;
+    private ClientAccessibilityOracle accessibilityOracle;
 
     boolean allowsPhantomRefs = false;
 
@@ -549,7 +552,11 @@ public class Scene  //extends AbstractHost
         nameToClass.put(c.getName(), c.getType());
         c.getType().setSootClass(c);
         c.setInScene(true);
-        modifyHierarchy();
+        
+        // Phantom classes are not really part of the hierarchy anyway, so
+        // we can keep the old one
+        if (!c.isPhantom)
+        	modifyHierarchy();
     }
 
     public void removeClass(SootClass c)
@@ -710,6 +717,67 @@ public class Scene  //extends AbstractHost
     }
     
     /**
+     * Returns the RefType with the given class name or primitive type.  
+     * @throws RuntimeException if the Type for this name cannot be found.
+     * Use {@link #getRefTypeUnsafe(String)} to check if type is an registered RefType.
+     */
+    public Type getType(String arg) {
+    	String type = arg.replaceAll("([^\\[\\]]*)(.*)", "$1");
+    	int arrayCount = arg.contains("[") ? arg.replaceAll("([^\\[\\]]*)(.*)", "$2").length() / 2 : 0;
+    	
+    	Type result = getRefTypeUnsafe(type);
+    	
+    	if (result == null) {
+    		switch(type) {
+            case "long":
+              result = LongType.v();
+              break;
+              
+            case "short":
+              result = ShortType.v();
+              break;
+
+            case "double":
+              result = DoubleType.v();
+              break;
+
+            case "int":
+              result = IntType.v();
+              break;
+
+            case "float":
+              result = FloatType.v();
+              break;
+
+            case "byte":
+              result = ByteType.v();
+              break;
+
+            case "char":
+              result = CharType.v();
+              break;
+
+            case "void":
+              result = VoidType.v();
+              break;
+
+            case "boolean":
+              result = BooleanType.v();
+              break;
+
+            default:
+              throw new RuntimeException("unknown type: '" + type + "'");
+          }
+    		
+    	}
+    	
+    	if (arrayCount != 0) {
+    		result = ArrayType.v(result, arrayCount);
+    	}
+    	return result;
+    }
+    
+    /**
      * Returns the RefType with the given className.  
      * @throws IllegalStateException if the RefType for this class cannot be found.
      * Use {@link #containsType(String)} to check if type is registered
@@ -845,10 +913,10 @@ public class Scene  //extends AbstractHost
     public SideEffectAnalysis getSideEffectAnalysis() 
     {
         if(!hasSideEffectAnalysis()) {
-	    setSideEffectAnalysis( new SideEffectAnalysis(
-			getPointsToAnalysis(),
-			getCallGraph() ) );
-	}
+        	setSideEffectAnalysis( new SideEffectAnalysis(
+        			getPointsToAnalysis(),
+        			getCallGraph() ) );
+        }
             
         return activeSideEffectAnalysis;
     }
@@ -876,12 +944,12 @@ public class Scene  //extends AbstractHost
     /**
         Retrieves the active pointer analysis
      */
-
+    
     public PointsToAnalysis getPointsToAnalysis() 
     {
         if(!hasPointsToAnalysis()) {
-	    return DumbPointerAnalysis.v();
-	}
+        	return DumbPointerAnalysis.v();
+        }
             
         return activePointsToAnalysis;
     }
@@ -905,6 +973,29 @@ public class Scene  //extends AbstractHost
         activePointsToAnalysis = null;
     }
 
+    /****************************************************************************/
+    /**
+     * Retrieves the active client accessibility oracle
+     */
+    public ClientAccessibilityOracle getClientAccessibilityOracle() {
+    	if (!hasClientAccessibilityOracle()) {
+    		return PublicAndProtectedAccessibility.v();
+    	}
+    	
+    	return accessibilityOracle;
+    }
+    
+    public boolean hasClientAccessibilityOracle() {
+    	return accessibilityOracle != null;
+    }
+    
+    public void setClientAccessibilityOracle(ClientAccessibilityOracle oracle) {
+    	accessibilityOracle = oracle;
+    }
+    
+    public void releaseClientAccessibilityOracle() {
+    	accessibilityOracle = null;
+    }
     /****************************************************************************/
     /** Makes a new fast hierarchy is none is active, and returns the active
      * fast hierarchy. */
@@ -1376,13 +1467,13 @@ public class Scene  //extends AbstractHost
 
         for( Iterator<String> pathIt = Options.v().dynamic_dir().iterator(); pathIt.hasNext(); ) {
 
-            final String path = (String) pathIt.next();
+            final String path = pathIt.next();
             dynClasses.addAll(SourceLocator.v().getClassesUnder(path));
         }
 
         for( Iterator<String> pkgIt = Options.v().dynamic_package().iterator(); pkgIt.hasNext(); ) {
 
-            final String pkg = (String) pkgIt.next();
+            final String pkg = pkgIt.next();
             dynClasses.addAll(SourceLocator.v().classesInDynamicPackage(pkg));
         }
 
@@ -1502,7 +1593,7 @@ public class Scene  //extends AbstractHost
     public List<SootClass> getClasses(int desiredLevel) {
         List<SootClass> ret = new ArrayList<SootClass>();
         for( Iterator<SootClass> clIt = getClasses().iterator(); clIt.hasNext(); ) {
-            final SootClass cl = (SootClass) clIt.next();
+            final SootClass cl = clIt.next();
             if( cl.resolvingLevel() >= desiredLevel ) ret.add(cl);
         }
         return ret;
@@ -1531,7 +1622,7 @@ public class Scene  //extends AbstractHost
         	
         	// try to infer a main class from the usual classpath if none is given 
         	for (Iterator<SootClass> classIter = getApplicationClasses().iterator(); classIter.hasNext();) {
-                    SootClass c = (SootClass) classIter.next();
+                    SootClass c = classIter.next();
                     if (c.declaresMethod ("main", Collections.<Type>singletonList( ArrayType.v(RefType.v("java.lang.String"), 1) ), VoidType.v()))
                     {
                         G.v().out.println("No main class given. Inferred '"+c.getName()+"' as main class.");					
