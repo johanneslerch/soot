@@ -88,20 +88,21 @@ public class Scene  //extends AbstractHost
         if (scp != null)
             setSootClassPath(scp);
 
-        kindNumberer.add( Kind.INVALID );
-        kindNumberer.add( Kind.STATIC );
-        kindNumberer.add( Kind.VIRTUAL );
-        kindNumberer.add( Kind.INTERFACE );
-        kindNumberer.add( Kind.SPECIAL );
-        kindNumberer.add( Kind.CLINIT );
-        kindNumberer.add( Kind.THREAD );
-        kindNumberer.add( Kind.EXECUTOR );
-        kindNumberer.add( Kind.ASYNCTASK );
-        kindNumberer.add( Kind.FINALIZE );
-        kindNumberer.add( Kind.INVOKE_FINALIZE );
-        kindNumberer.add( Kind.PRIVILEGED );
-        kindNumberer.add( Kind.NEWINSTANCE );
-
+        kindNumberer = new ArrayNumberer<Kind>(new Kind[] {
+        	Kind.INVALID,
+        	Kind.STATIC,
+        	Kind.VIRTUAL,
+        	Kind.INTERFACE,
+        	Kind.SPECIAL,
+        	Kind.CLINIT,
+        	Kind.THREAD,
+        	Kind.EXECUTOR,
+        	Kind.ASYNCTASK,
+        	Kind.FINALIZE,
+        	Kind.INVOKE_FINALIZE,
+        	Kind.PRIVILEGED,
+        	Kind.NEWINSTANCE});
+        
         addSootBasicClasses();
         
         determineExcludedPackages();
@@ -135,7 +136,7 @@ public class Scene  //extends AbstractHost
     
     private final Map<String,RefType> nameToClass = new HashMap<String,RefType>();
 
-    ArrayNumberer<Kind> kindNumberer = new ArrayNumberer<Kind>();
+    final ArrayNumberer<Kind> kindNumberer;
     ArrayNumberer<Type> typeNumberer = new ArrayNumberer<Type>();
     ArrayNumberer<SootMethod> methodNumberer = new ArrayNumberer<SootMethod>();
     Numberer<Unit> unitNumberer = new MapNumberer<Unit>();
@@ -182,15 +183,25 @@ public class Scene  //extends AbstractHost
     }
     
     /**
-        If this name is in the set of reserved names, then return a quoted version of it.  Else pass it through.
+     * If this name is in the set of reserved names, then return a quoted
+     * version of it.  Else pass it through. If the name consists of multiple
+     * parts separated by dots, the individual names are checked as well.
      */
-    
     public String quotedNameOf(String s)
     {
-        if(reservedNames.contains(s))
-            return "\'" + s + "\'";
-        else
-            return s;
+    	StringBuilder res = new StringBuilder(s.length());
+    	for (String part : s.split("\\.")) {
+    		if (res.length() > 0)
+    			res.append('.');
+	        if(reservedNames.contains(part)) {
+	            res.append('\'');
+	            res.append(part);
+	            res.append('\'');
+	        }
+	        else
+	            res.append(part);
+    	}
+    	return res.toString();
     }
     
     public boolean hasMainClass() {
@@ -207,14 +218,19 @@ public class Scene  //extends AbstractHost
             
         return mainClass;
     }
+    
     public SootMethod getMainMethod() {
         if(!hasMainClass()) {
             throw new RuntimeException("There is no main class set!");
-        } 
-        if (!mainClass.declaresMethod ("main", Collections.<Type>singletonList( ArrayType.v(RefType.v("java.lang.String"), 1) ), VoidType.v())) {
+        }
+        
+        SootMethod mainMethod = mainClass.getMethodUnsafe("main",
+        		Collections.<Type>singletonList( ArrayType.v(RefType.v("java.lang.String"), 1) ),
+        		VoidType.v());
+        if (mainMethod == null) {
             throw new RuntimeException("Main class declares no main method!");
         }
-        return mainClass.getMethod ("main", Collections.<Type>singletonList( ArrayType.v(RefType.v("java.lang.String"), 1) ), VoidType.v());   
+        return mainMethod;   
     }
     
     
@@ -728,47 +744,26 @@ public class Scene  //extends AbstractHost
     	Type result = getRefTypeUnsafe(type);
     	
     	if (result == null) {
-    		switch(type) {
-            case "long":
+    		if (type.equals("long"))
               result = LongType.v();
-              break;
-              
-            case "short":
+    		else if (type.equals("short"))
               result = ShortType.v();
-              break;
-
-            case "double":
+    		else if (type.equals("double"))
               result = DoubleType.v();
-              break;
-
-            case "int":
+    		else if (type.equals("int"))
               result = IntType.v();
-              break;
-
-            case "float":
+    		else if (type.equals("float"))
               result = FloatType.v();
-              break;
-
-            case "byte":
+    		else if (type.equals("byte"))
               result = ByteType.v();
-              break;
-
-            case "char":
+    		else if (type.equals("char"))
               result = CharType.v();
-              break;
-
-            case "void":
+    		else if (type.equals("void"))
               result = VoidType.v();
-              break;
-
-            case "boolean":
+    		else if (type.equals("boolean"))
               result = BooleanType.v();
-              break;
-
-            default:
+    		else
               throw new RuntimeException("unknown type: '" + type + "'");
-          }
-    		
     	}
     	
     	if (arrayCount != 0) {
@@ -1310,7 +1305,7 @@ public class Scene  //extends AbstractHost
 		addBasicClass("java.lang.IndexOutOfBoundsException");
 		addBasicClass("java.lang.ArrayIndexOutOfBoundsException");
 		addBasicClass("java.lang.NegativeArraySizeException");
-		addBasicClass("java.lang.NullPointerException");
+		addBasicClass("java.lang.NullPointerException", SootClass.SIGNATURES);
 		addBasicClass("java.lang.InstantiationError");
 		addBasicClass("java.lang.InternalError");
 		addBasicClass("java.lang.OutOfMemoryError");
